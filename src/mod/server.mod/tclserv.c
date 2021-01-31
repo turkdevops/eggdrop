@@ -2,7 +2,7 @@
  * tclserv.c -- part of server.mod
  *
  * Copyright (C) 1997 Robey Pointer
- * Copyright (C) 1999 - 2020 Eggheads Development Team
+ * Copyright (C) 1999 - 2021 Eggheads Development Team
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -450,7 +450,7 @@ static int tcl_addserver STDVAR {
   char pass[121] = "";
   char ret = 0;
 
-  BADARGS(2, 4, "server ?port? ?pass?");
+  BADARGS(2, 4, " server ?port? ?pass?");
   strlcpy(name, argv[1], sizeof name);
   if (argc >= 3) {
       strlcpy(port, argv[2], sizeof port);
@@ -477,7 +477,7 @@ static int tcl_delserver STDVAR {
   char port[7] = "";
   char ret = 0;
 
-  BADARGS(2, 3, "server, ?port?");
+  BADARGS(2, 3, " server, ?port?");
   strlcpy(name, argv[1], sizeof name);
   if (argc == 3) {
     strlcpy(port, argv[2], sizeof port);

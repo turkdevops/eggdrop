@@ -6,7 +6,7 @@
  */
 /*
  * Copyright (C) 1997 Robey Pointer
- * Copyright (C) 1999 - 2020 Eggheads Development Team
+ * Copyright (C) 1999 - 2021 Eggheads Development Team
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -1172,7 +1172,7 @@ struct dcc_table DCC_CHAT = {
 };
 
 static int lasttelnets;
-static char lasttelnethost[81];
+static char lasttelnethost[UHOSTLEN + 15];
 static time_t lasttelnettime;
 
 /* A modified detect_flood for incoming telnet flood protection.
@@ -1277,7 +1277,7 @@ static void dcc_telnet_hostresolved(int i)
 {
   int idx;
   int j = 0, sock;
-  char s[UHOSTLEN + 20], *userhost;
+  char s[sizeof lasttelnethost], *userhost;
 
   strlcpy(dcc[i].host, dcc[i].u.dns->host, UHOSTLEN);
 
@@ -1302,7 +1302,7 @@ static void dcc_telnet_hostresolved(int i)
       return;
     }
   }
-  sprintf(s, "-telnet!telnet@%s", dcc[i].host);
+  snprintf(s, sizeof s, "-telnet!telnet@%s", dcc[i].host);
   userhost = s + strlen("-telnet!");
   if (match_ignore(s) || detect_telnet_flood(s)) {
     killsock(dcc[i].sock);
@@ -1518,7 +1518,7 @@ static void dcc_telnet_id(int idx, char *buf, int atr)
   buf[HANDLEN] = 0;
   /* Toss out bad nicknames */
   if (dcc[idx].nick[0] != '@' && !wild_match(dcc[idx].nick, buf)) {
-    dprintf(idx, "Sorry, that nickname format is invalid.\n");
+    dprintf(idx, "Sorry, that handle format is invalid.\n");
     putlog(LOG_BOTS, "*", DCC_BADNICK, dcc[idx].host);
     killsock(dcc[idx].sock);
     lostdcc(idx);
@@ -1579,7 +1579,7 @@ static void dcc_telnet_id(int idx, char *buf, int atr)
     dprintf(idx, "\n");
     dprintf(idx, IRC_TELNET, botnetnick);
     dprintf(idx, IRC_TELNET1);
-    dprintf(idx, "\nEnter the nickname you would like to use.\n");
+    dprintf(idx, "\nEnter the handle you would like to use.\n");
     return;
   }
   if (chan_op(fr)) {
@@ -1833,7 +1833,7 @@ static void dcc_telnet_new(int idx, char *buf, int x)
             buf[0]);
     dprintf(idx, "Try another one please:\n");
   } else if (get_user_by_handle(userlist, buf)) {
-    dprintf(idx, "\nSorry, that nickname is taken already.\n");
+    dprintf(idx, "\nSorry, that handle is taken already.\n");
     dprintf(idx, "Try another one please:\n");
     return;
   } else if (!strcasecmp(buf, botnetnick))
