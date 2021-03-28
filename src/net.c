@@ -130,14 +130,13 @@ char *iptostr(struct sockaddr *sa)
  */
 int setsockname(sockname_t *addr, char *src, int port, int allowres)
 {
-  char *endptr;
+  char *endptr, *src2 = src;;
   long val;
   IP ip;
   struct hostent *hp;
   volatile int af = AF_UNSPEC;
 #ifdef IPV6
   char ip2[INET6_ADDRSTRLEN];
-  char *src2 = src;
   int pref;
 #else
   char ip2[INET_ADDRSTRLEN];
@@ -151,9 +150,7 @@ int setsockname(sockname_t *addr, char *src, int port, int allowres)
     ip = htonl(val);
     if (inet_ntop(AF_INET, &ip, ip2, sizeof ip2)) {
       debug2("net: setsockname(): ip %s -> %s", src, ip2);
-#ifdef IPV6
       src2 = ip2;
-#endif
     }
   }
 #ifdef IPV6
@@ -218,7 +215,7 @@ int setsockname(sockname_t *addr, char *src, int port, int allowres)
  * have to resort to hackishly counting :s to see if its IPv6 or not.
  * Go internet.
  */
-  if (!inet_pton(AF_INET, src, &addr->addr.s4.sin_addr)) {
+  if (!inet_pton(AF_INET, src2, &addr->addr.s4.sin_addr)) {
     /* Boring way to count :s */
     count = 0;
     for (i = 0; src[i]; i++) {
@@ -270,7 +267,7 @@ void getvhost(sockname_t *addr, int af)
   else
     h = vhost6;
 #endif
-  if (!vhost[0] || setsockname(addr, (h ? h : ""), 0, 1) != af)
+  if (!h || !h[0] || setsockname(addr, (h ? h : ""), 0, 1) != af)
     setsockname(addr, (af == AF_INET ? "0.0.0.0" : "::"), 0, 0);
   /* Remember this 'self-lookup failed' thingie?
      I have good news - you won't see it again ;) */
@@ -538,7 +535,7 @@ int open_telnet_raw(int sock, sockname_t *addr)
   socklen_t res_len;
   fd_set sockset;
   struct timeval tv;
-  int i, rc, res;
+  int i, j, rc, res;
 
   for (i = 0; i < dcc_total; i++)
     if (dcc[i].sock == sock) { /* Got idx from sock ? */
@@ -555,13 +552,19 @@ int open_telnet_raw(int sock, sockname_t *addr)
   if (bind(sock, &name.addr.sa, name.addrlen) < 0) {
     return -1;
   }
-  for (i = 0; i < threaddata()->MAXSOCKS; i++) {
-    if (!(socklist[i].flags & SOCK_UNUSED) && (socklist[i].sock == sock))
-      socklist[i].flags = (socklist[i].flags & ~SOCK_VIRTUAL) | SOCK_CONNECT;
+  for (j = 0; j < threaddata()->MAXSOCKS; j++) {
+    if (!(socklist[j].flags & SOCK_UNUSED) && (socklist[j].sock == sock))
+      socklist[j].flags = (socklist[j].flags & ~SOCK_VIRTUAL) | SOCK_CONNECT;
   }
   if (addr->family == AF_INET && firewall[0])
     return proxy_connect(sock, addr);
   rc = connect(sock, &addr->addr.sa, addr->addrlen);
+  /* To minimize a proven race condition, call ident here (especially when
+   * rc < 0 and errno == EINPROGRESS)
+   */
+  if (dcc[i].status & STAT_SERV) {
+    check_tcl_event("ident");
+  }
   if (rc < 0) {
     if (errno == EINPROGRESS) {
       /* Async connection... don't return socket descriptor
